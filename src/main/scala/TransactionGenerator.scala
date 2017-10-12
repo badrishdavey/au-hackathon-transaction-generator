@@ -31,13 +31,12 @@ object TransactionGenerator extends Detector {
     val a = accounts.toVector(rng.nextInt(accounts.size))
     val c = a.customer.apply(rng.nextInt(a.customer.size))
     val m = merchants.toVector(rng.nextInt(merchants.size))
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val date = LocalDateTime.now().format(formatter)
+    val date = LocalDateTime.now()
     var amount = ((math rint m.amount.toDouble) * 100)/100 + rng.nextInt(-50, 50)/100
     if(amount < 0)
       amount = 0
     transactionId += 1
-    s"""{"account_id":"${a.account_id}","transaction_id":"$transactionId","customer_id":"${c.customer_id}","first_name":"${c.first_name}","last_name":"${c.last_name}","customer_zipcode":"${c.zipcode}","gender":"${c.gender}","is_married":"${c.is_married}","email":"${c.email}","amount":"$amount","merchant":"${m.merchant_name}","transaction_zipcode":"${m.zipcode}","card_type":"${a.credit_card_type}","card_number":"${c.credit_card_number}","date":"$date","rewards_earned":"${(((math rint amount) * 0.02) * 100) / 100}"}"""
+    s"""{"account_id":"${a.account_id}","transaction_id":"$transactionId","customer_id":"${c.customer_id}","first_name":"${c.first_name}","last_name":"${c.last_name}","customer_zipcode":"${c.zipcode}","gender":"${c.gender}","is_married":"${c.is_married}","email":"${c.email}","amount":"$amount","merchant":"${m.merchant_name}","transaction_zipcode":"${m.zipcode}","card_type":"${a.credit_card_type}","card_number":"${c.credit_card_number}","date_year":"${date.getYear}","date_month":"${date.getMonth}","date_day":"${date.getDayOfMonth}","rewards_earned":"${(((math rint amount) * 0.02) * 100) / 100}"}"""
   }
 }
 
