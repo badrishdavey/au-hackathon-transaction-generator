@@ -17,7 +17,12 @@ object TransactionGenerator extends Detector {
   {
     val bufferedSource = io.Source.fromFile("data.json")
     for (line <- bufferedSource.getLines()) {
-      val acct = gson.fromJson(line, classOf[account])
+      var jsonEntry = line
+      if(jsonEntry.charAt(0)=='[')
+        jsonEntry = jsonEntry.substring(1)
+      if(jsonEntry.charAt(jsonEntry.length-1)==',' || jsonEntry.charAt(jsonEntry.length-1)==']')
+        jsonEntry = jsonEntry.substring(0, jsonEntry.length-1)
+      val acct = gson.fromJson(jsonEntry, classOf[account])
       accounts += acct
       for (customer <- acct.customer) {
         for(txn <- customer.transactions) {
