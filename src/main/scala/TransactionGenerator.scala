@@ -1,10 +1,11 @@
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 import com.google.gson.Gson
 
 import scala.util.Random
-
+import java.io.{File, FileInputStream, FileWriter}
+import java.time.format.DateTimeFormatter
+import java.util.Properties
 
 object TransactionGenerator extends Detector {
 
@@ -14,8 +15,21 @@ object TransactionGenerator extends Detector {
   val gson: Gson = new Gson()
   var transactionId: Int = 1000000000
 
+  val fileProperties = new Properties()
+  fileProperties.load(new FileInputStream("client.properties"))
+
+  val dtf = DateTimeFormatter.BASIC_ISO_DATE
+
   {
-    val bufferedSource = io.Source.fromFile("data.json")
+    val file: File = new File("transactions.json")
+    if(!file.exists())
+      file.createNewFile()
+    else {
+      file.delete()
+      file.createNewFile()
+    }
+    val fw: FileWriter = new FileWriter(file)
+    val bufferedSource = io.Source.fromFile(fileProperties.getProperty("data.input.file"))
     for (line <- bufferedSource.getLines()) {
       var jsonEntry = line
       if(jsonEntry.charAt(0)=='[')
@@ -27,14 +41,16 @@ object TransactionGenerator extends Detector {
       for (customer <- acct.customer) {
         for(txn <- customer.transactions) {
           merchants += merchant(txn.merchant_name, txn.amount, txn.country, txn.zipcode)
+          fw.write(s"""{"account_id":"${acct.account_id}","transaction_id":"${txn.transaction_id}","customer_id":"${customer.customer_id}","first_name":"${customer.first_name}","last_name":"${customer.last_name}","customer_zipcode":"${customer.zipcode}","gender":"${customer.gender}","is_married":"${customer.is_married}","email":"${customer.email}","amount":"${txn.amount}","merchant":"${txn.merchant_name}","transaction_zipcode":"${txn.zipcode}","card_type":"${acct.credit_card_type}","card_number":"${customer.credit_card_number}","date_year":"${txn.year}","date_month":"${txn.month}","date_day":"${txn.day}","rewards_earned":"${txn.rewards_earned}"}\r\n""")
         }
       }
     }
+    fw.close()
   }
 
   override val authGenerator = (_: Any) => {
     val a = accounts.toVector(rng.nextInt(accounts.size))
-    val c = a.customer.apply(rng.nextInt(a.customer.size))
+    val c = a.customer.apply(rng.nextInt(a.customer.length))
     val m = merchants.toVector(rng.nextInt(merchants.size))
     val date = LocalDateTime.now()
     var amount = ((math rint m.amount.toDouble) * 100)/100 + rng.nextInt(-50, 50)/100
@@ -59,7 +75,9 @@ class RandomNumber extends Random{
 case class transaction(
                       amount: String,
                       country: String,
-                      date: String,
+                      day: String,
+                      month: String,
+                      year: String,
                       merchant_name: String,
                       rewards_earned: String,
                       transaction_id: String,

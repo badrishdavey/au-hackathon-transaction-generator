@@ -24,4 +24,4 @@ This example will generate transactions for the `transactions` detector at 100 T
 
 This will post events to the Kafka topic as defined in `client.properties`.
 
-The transaction generator reads a file `data.json` and pulls all accounts and merchants into two pools, then randomly generates a transaction based on the two pools. The same account and merchant information are used (account ID, email address, etc.), but a transaction ID, timestamp, and transaction amount are newly created. The transaction amount is based on transaction amounts for the merchant from `data.json`, within $0.50.
+The transaction generator reads a JSON file (defined in `client.properties`) and pulls all accounts and merchants into two pools, then randomly generates a transaction based on the two pools. The same account and merchant information are used (account ID, email address, etc.), but a transaction ID, timestamp, and transaction amount are newly created. The transaction amount is based on transaction amounts for the merchant from `data.json`, within $0.50.
