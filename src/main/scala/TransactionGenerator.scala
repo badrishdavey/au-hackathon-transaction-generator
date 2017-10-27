@@ -1,34 +1,24 @@
 import java.time.LocalDateTime
 
 import com.google.gson.Gson
+import java.io.FileInputStream
+import java.util.Properties
 
 import scala.util.Random
-import java.io.{File, FileInputStream, FileWriter}
-import java.time.format.DateTimeFormatter
-import java.util.Properties
 
 object TransactionGenerator extends Detector {
 
-  val rng = new RandomNumber()
+  val rng = new Random()
+  val gson: Gson = new Gson()
+
   var merchants: Set[merchant] = Set()
   var accounts: Set[account] = Set()
-  val gson: Gson = new Gson()
-  var transactionId: Int = 1000000000
 
   val fileProperties = new Properties()
   fileProperties.load(new FileInputStream("client.properties"))
 
-  val dtf = DateTimeFormatter.BASIC_ISO_DATE
-
   {
-    val file: File = new File("transactions.json")
-    if(!file.exists())
-      file.createNewFile()
-    else {
-      file.delete()
-      file.createNewFile()
-    }
-    val fw: FileWriter = new FileWriter(file)
+    println("Reading from data file...")
     val bufferedSource = io.Source.fromFile(fileProperties.getProperty("data.input.file"))
     for (line <- bufferedSource.getLines()) {
       var jsonEntry = line
@@ -39,13 +29,13 @@ object TransactionGenerator extends Detector {
       val acct = gson.fromJson(jsonEntry, classOf[account])
       accounts += acct
       for (customer <- acct.customer) {
+        customer.transaction_length = customer.transactions.length
         for(txn <- customer.transactions) {
-          merchants += merchant(txn.merchant_name, txn.amount, txn.country, txn.zipcode)
-          fw.write(s"""{"account_id":"${acct.account_id}","transaction_id":"${txn.transaction_id}","customer_id":"${customer.customer_id}","first_name":"${customer.first_name}","last_name":"${customer.last_name}","customer_zipcode":"${customer.zipcode}","gender":"${customer.gender}","is_married":"${customer.is_married}","email":"${customer.email}","amount":"${txn.amount}","merchant":"${txn.merchant_name}","transaction_zipcode":"${txn.zipcode}","card_type":"${acct.credit_card_type}","card_number":"${customer.credit_card_number}","date_year":"${txn.year}","date_month":"${txn.month}","date_day":"${txn.day}","rewards_earned":"${txn.rewards_earned}"}\r\n""")
+          merchants += merchant(txn.merchant_name, txn.amount, txn.country, txn.zipcode, txn.rewards_earned)
         }
       }
     }
-    fw.close()
+    println("Finished loading data.")
   }
 
   override val authGenerator = (_: Any) => {
@@ -53,22 +43,8 @@ object TransactionGenerator extends Detector {
     val c = a.customer.apply(rng.nextInt(a.customer.length))
     val m = merchants.toVector(rng.nextInt(merchants.size))
     val date = LocalDateTime.now()
-    var amount = ((math rint m.amount.toDouble) * 100)/100 + rng.nextInt(-50, 50)/100
-    if(amount < 0)
-      amount = 0
-    transactionId += 1
-    s"""{"account_id":"${a.account_id}","transaction_id":"$transactionId","customer_id":"${c.customer_id}","first_name":"${c.first_name}","last_name":"${c.last_name}","customer_zipcode":"${c.zipcode}","gender":"${c.gender}","is_married":"${c.is_married}","email":"${c.email}","amount":"$amount","merchant":"${m.merchant_name}","transaction_zipcode":"${m.zipcode}","card_type":"${a.credit_card_type}","card_number":"${c.credit_card_number}","date_year":"${date.getYear}","date_month":"${date.getMonth}","date_day":"${date.getDayOfMonth}","rewards_earned":"${(((math rint amount) * 0.02) * 100) / 100}"}"""
-  }
-}
-
-class RandomNumber extends Random{
-  val rng = new Random()
-
-  def nextInt(lower: Int, upper: Int): Int = {
-    if(lower > upper)
-      nextInt(upper, lower)
-    else
-      lower + rng.nextInt(upper - lower + 1)
+    c.transaction_length += 1
+    s"""{"account_id":"${a.account_id}","transaction_id":"${c.customer_id}${c.transaction_length % 1000}","customer_id":"${c.customer_id}","first_name":"${c.first_name}","last_name":"${c.last_name}","customer_zipcode":"${c.zipcode}","gender":"${c.gender}","is_married":"${c.is_married}","email":"${c.email}","amount":"${m.amount}","merchant":"${m.merchant_name}","transaction_zipcode":"${m.zipcode}","card_type":"${a.credit_card_type}","card_number":"${c.credit_card_number}","date_year":"${date.getYear}","date_month":"${date.getMonth}","date_day":"${date.getDayOfMonth}","time_hour":"${date.getHour}","time_minute":"${date.getMinute}","time_second":"${date.getSecond}","rewards_earned":"${m.rewards_earned}"}"""
   }
 }
 
@@ -97,7 +73,8 @@ case class customer(
                    is_primary: String,
                    last_name: String,
                    transactions: Array[transaction],
-                   zipcode: String
+                   zipcode: String,
+                   var transaction_length: Int = 0
                    )
 
 case class account(
@@ -114,7 +91,8 @@ case class merchant(
                    merchant_name: String,
                    amount: String,
                    country: String,
-                   zipcode: String
+                   zipcode: String,
+                   rewards_earned: String
                    )
 
 case class payment(
