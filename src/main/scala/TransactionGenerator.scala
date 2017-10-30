@@ -2,6 +2,7 @@ import java.time.LocalDateTime
 
 import com.google.gson.Gson
 import java.io.FileInputStream
+import java.time.format.DateTimeFormatter
 import java.util.Properties
 
 import scala.util.Random
@@ -11,11 +12,14 @@ object TransactionGenerator extends Detector {
   val rng = new Random()
   val gson: Gson = new Gson()
 
-  var merchants: Set[merchant] = Set()
+  var streamedTransactions: Set[StreamedTransaction] = Set()
+  var streamedTransactionsVector: Vector[StreamedTransaction] = Vector()
   var accounts: Set[account] = Set()
 
   val fileProperties = new Properties()
   fileProperties.load(new FileInputStream("client.properties"))
+
+  var count = 0
 
   {
     println("Reading from data file...")
@@ -28,25 +32,64 @@ object TransactionGenerator extends Detector {
         jsonEntry = jsonEntry.substring(0, jsonEntry.length-1)
       val acct = gson.fromJson(jsonEntry, classOf[account])
       accounts += acct
-      for (customer <- acct.customer) {
-        customer.transaction_length = customer.transactions.length
-        for(txn <- customer.transactions) {
-          merchants += merchant(txn.merchant_name, txn.amount, txn.country, txn.zipcode, txn.rewards_earned)
+      for (cust <- acct.customer) {
+        for(txn <- cust.transactions) {
+          streamedTransactions += StreamedTransaction(
+            acct.account_id,
+            s"${cust.customer_id}${cust.transactions.length}",
+            cust.customer_id,
+            cust.first_name,
+            cust.last_name,
+            cust.zipcode,
+            cust.gender,
+            cust.is_married,
+            cust.email,
+            txn.amount,
+            txn.merchant_name,
+            txn.zipcode,
+            acct.credit_card_type,
+            cust.credit_card_number,
+            null,
+            txn.rewards_earned
+          )
         }
       }
     }
+    accounts = null
+    streamedTransactionsVector = streamedTransactions.toVector
+    streamedTransactions = null
     println("Finished loading data.")
   }
 
   override val authGenerator = (_: Any) => {
-    val a = accounts.toVector(rng.nextInt(accounts.size))
-    val c = a.customer.apply(rng.nextInt(a.customer.length))
-    val m = merchants.toVector(rng.nextInt(merchants.size))
+    val t = streamedTransactionsVector(count)
+    count += 1
+    if(count == streamedTransactionsVector.size) count = 0
     val date = LocalDateTime.now()
-    c.transaction_length += 1
-    s"""{"account_id":"${a.account_id}","transaction_id":"${c.customer_id}${c.transaction_length % 1000}","customer_id":"${c.customer_id}","first_name":"${c.first_name}","last_name":"${c.last_name}","customer_zipcode":"${c.zipcode}","gender":"${c.gender}","is_married":"${c.is_married}","email":"${c.email}","amount":"${m.amount}","merchant":"${m.merchant_name}","transaction_zipcode":"${m.zipcode}","card_type":"${a.credit_card_type}","card_number":"${c.credit_card_number}","date_year":"${date.getYear}","date_month":"${date.getMonth}","date_day":"${date.getDayOfMonth}","time_hour":"${date.getHour}","time_minute":"${date.getMinute}","time_second":"${date.getSecond}","rewards_earned":"${m.rewards_earned}"}"""
+    t.transaction_id = (t.transaction_id.toLong + 1).toString
+    t.tx_time = date.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    gson.toJson(t)
   }
 }
+
+case class StreamedTransaction(
+                              account_id: String,
+                              var transaction_id: String,
+                              customer_id: String,
+                              first_name: String,
+                              last_name: String,
+                              customer_zipcode: String,
+                              gender: String,
+                              is_married: String,
+                              email: String,
+                              amount: String,
+                              merchant: String,
+                              transaction_zipcode: String,
+                              card_type: String,
+                              card_number: String,
+                              var tx_time: String,
+                              rewards_earned: String
+                              )
 
 case class transaction(
                       amount: String,
@@ -73,8 +116,7 @@ case class customer(
                    is_primary: String,
                    last_name: String,
                    transactions: Array[transaction],
-                   zipcode: String,
-                   var transaction_length: Int = 0
+                   zipcode: String
                    )
 
 case class account(
