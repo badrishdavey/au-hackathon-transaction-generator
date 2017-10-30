@@ -26,7 +26,7 @@ This example will generate transactions for the `transactions` detector at 100 T
 
 This will post events to the Kafka topic as defined in `client.properties`.
 
-## Cluster Setup
+## Kafka Setup
 
 To run Kafka on an EC2 instance:
 
